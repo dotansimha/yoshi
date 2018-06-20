@@ -37,6 +37,7 @@ prog
     'Run tests on watch mode (mocha, jasmine, jest, karma)',
     BOOL,
   )
+  .argument('[args...]', 'Pass arguments to the test runner')
   .action(() => runCLI('test'));
 
 prog

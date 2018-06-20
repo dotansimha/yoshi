@@ -18,6 +18,10 @@ const runner = createRunner({
 });
 
 const cliArgs = minimist(process.argv.slice(2));
+// Variadic arguments are placed inside the "_" property array
+// https://github.com/substack/minimist#var-argv--parseargsargs-opts
+// The first argument is the command itself (lint), we retrieve all the rest
+const testRunnerArgs = cliArgs._.slice(1);
 const debugPort = cliArgs.debug;
 const debugBrkPort = cliArgs['debug-brk'];
 const shouldWatch = cliArgs.watch || cliArgs.w || watchMode();
@@ -64,6 +68,7 @@ module.exports = runner.command(
         `--require=${require.resolve('../../config/test-setup')}`,
         '--timeout=30000',
         `--reporter=${getMochaReporter()}`,
+        ...testRunnerArgs,
       ];
 
       if (cliArgs.coverage) {
@@ -94,6 +99,7 @@ module.exports = runner.command(
       const jasmineArgs = [
         require.resolve('jasmine/bin/jasmine'),
         `--config=${require.resolve('../../config/jasmine-config')}`,
+        ...testRunnerArgs,
       ];
 
       if (cliArgs.coverage) {
@@ -131,6 +137,7 @@ module.exports = runner.command(
         `--config=${JSON.stringify(config)}`,
         shouldWatch ? '--watch' : '',
         cliArgs.coverage ? '--coverage' : '',
+        ...testRunnerArgs,
       ];
       if (debugBrkPort !== undefined) {
         jestCliOptions.unshift(`--inspect-brk=${debugBrkPort}`);
@@ -157,11 +164,12 @@ module.exports = runner.command(
         configFile: path.join(__dirname, '../../config/karma.conf'),
         singleRun: !shouldWatch,
         autoWatch: shouldWatch,
+        ...minimist(testRunnerArgs),
       });
     }
 
     if (cliArgs.protractor && hasProtractorConfigFile() && !shouldWatch) {
-      return protractor(debugPort, debugBrkPort);
+      return protractor(debugPort, debugBrkPort, testRunnerArgs);
     }
   },
   { persistent: shouldWatch },

@@ -128,6 +128,18 @@ describe('Aggregator: Test', () => {
       expect(res.code).to.equal(0);
       expect(res.stdout).to.not.contains('protractor');
     });
+
+    it('it should pass dynamic arguments to the test runner', () => {
+      const res = test
+        .setup({
+          'protractor.conf.js': fx.protractorConf({ cdnPort: 3200 }),
+          'package.json': fx.packageJson({ clientProjectName: 'client' }),
+        })
+        .execute('test', ['--protractor', '--', '--version']);
+
+      expect(res.stdout).to.match(/Version \d+\.\d+\.\d+/);
+      test.teardown();
+    });
   });
 
   describe('--jest', () => {
@@ -226,6 +238,18 @@ describe('Aggregator: Test', () => {
 
     it('should transpile ES modules out of the box', () => {
       expect(res.stderr).to.not.contain('should work with es modules');
+    });
+
+    it('it should pass dynamic arguments to the test runner', () => {
+      const test = tp.create();
+      const res = test
+        .setup({
+          'package.json': fx.packageJson(),
+        })
+        .execute('test', ['--jest', '--', '-v']);
+
+      expect(res.stdout).to.match(/v\d+\.\d+\.\d+/);
+      test.teardown();
     });
 
     describe('stylable integration', () => {
@@ -402,6 +426,17 @@ describe('Aggregator: Test', () => {
 
     it('should pass while requiring css', () => {
       expect(res.stdout).to.contain('passed css');
+    });
+
+    it('it should pass dynamic arguments to the test runner', () => {
+      const res = tp
+        .create()
+        .setup({
+          'package.json': fx.packageJson(),
+        })
+        .execute('test', ['--mocha', '--', '-V'], outsideTeamCity);
+
+      expect(res.stdout).to.match(/\d+\.\d+\.\d+/);
     });
 
     describe('with custom build', () => {
@@ -612,79 +647,140 @@ describe('Aggregator: Test', () => {
   });
 
   describe('--karma', function() {
-    this.timeout(60000);
-    let test;
-    let res;
-
-    before(() => {
-      test = tp.create();
-
-      // 'src/client.spec.js': `require('./foo.css'); it('pass', function () {expect(1).toBe(1);});`,
-      //   'src/foo.css': '@import "bar/bar";',
-      //   'node_modules/bar/bar.scss': '.bar{color:red}',
-      //   'karma.conf.js': fx.karmaWithJasmine(),
-      //   'package.json': fx.packageJson()
-      res = test
+    it('it should pass dynamic arguments to the test runner', () => {
+      const res = test
+        .verbose()
         .setup({
-          'karma.conf.js':
-            'module.exports = {frameworks: ["jasmine"], files: ["a.js", "test.spec.js"], exclude: ["excluded.spec.js"]}',
-          'node_modules/phantomjs-polyfill/bind-polyfill.js': 'a = 1;',
-          'test/karma-setup.js': 'console.log("setup karma")',
-          'a.js': '"use strict";var a = 2; var b = 3;',
-          'src/test.spec.js': `
+          'package.json': fx.packageJson(),
+        })
+        .execute('test', ['--karma', '--', '--version']);
+
+      expect(res.stdout).to.match(/Karma version: \d+\.\d+\.\d+/);
+      test.teardown();
+    });
+
+    describe('specific configuration', () => {
+      this.timeout(60000);
+      let test;
+      let res;
+      before(() => {
+        test = tp.create();
+
+        // 'src/client.spec.js': `require('./foo.css'); it('pass', function () {expect(1).toBe(1);});`,
+        //   'src/foo.css': '@import "bar/bar";',
+        //   'node_modules/bar/bar.scss': '.bar{color:red}',
+        //   'karma.conf.js': fx.karmaWithJasmine(),
+        //   'package.json': fx.packageJson()
+        res = test
+          .setup({
+            'karma.conf.js':
+              'module.exports = {frameworks: ["jasmine"], files: ["a.js", "test.spec.js"], exclude: ["excluded.spec.js"]}',
+            'node_modules/phantomjs-polyfill/bind-polyfill.js': 'a = 1;',
+            'test/karma-setup.js': 'console.log("setup karma")',
+            'a.js': '"use strict";var a = 2; var b = 3;',
+            'src/test.spec.js': `
             it("pass result", function () { expect(1).toBe(1); });
             it("pass polyfill", function () { expect(global.a).toBe(1); console.log('passed polyfill') });
             it("pass correct sequence", function () { expect(a).toBe(1);expect(b).toBe(3); console.log('passed correct sequence')});
           `,
-          'src/test2.spec.js':
-            'it("pass", function () { expect(1).toBe(1); });',
-          'src/test1.spec.js':
-            'it("pass", function () { expect(2).toBe(2); });',
-          'some/other/app.glob.js':
-            'it("pass", function () { expect(4).toBe(4); });',
-          'some/other/app2.glob.js':
-            'it("pass", function () { expect(5).toBe(5); });',
-          'src/style.scss': `.a {.b {color: red;}}`,
-          'src/client.js': `require('./style.scss'); module.exports = function (a) {return a + 1;};`,
-          'src/client.spec.js': `
+            'src/test2.spec.js':
+              'it("pass", function () { expect(1).toBe(1); });',
+            'src/test1.spec.js':
+              'it("pass", function () { expect(2).toBe(2); });',
+            'some/other/app.glob.js':
+              'it("pass", function () { expect(4).toBe(4); });',
+            'some/other/app2.glob.js':
+              'it("pass", function () { expect(5).toBe(5); });',
+            'src/style.scss': `.a {.b {color: red;}}`,
+            'src/client.js': `require('./style.scss'); module.exports = function (a) {return a + 1;};`,
+            'src/client.spec.js': `
             const add1 = require('./client'); it('pass client', function () {expect(add1(1)).toBe(2);});
               it('pass style from node_modules', function () {require('./foo.css');});
           `,
-          'src/foo.css': '@import "bar/bar";',
-          'node_modules/bar/bar.scss': '.bar{color:red}',
-          'excluded.spec.js': `
+            'src/foo.css': '@import "bar/bar";',
+            'node_modules/bar/bar.scss': '.bar{color:red}',
+            'excluded.spec.js': `
             it("pass excluded", function () { expect(1).toBe(1); console.log('passed excluded') });
           `,
-          'package.json': fx.packageJson({
-            separateCss: false,
-          }),
-          'pom.xml': fx.pom(),
-        })
-        .execute('test', ['--karma'], outsideTeamCity);
-    });
-    after(() => test.teardown());
+            'package.json': fx.packageJson({
+              separateCss: false,
+            }),
+            'pom.xml': fx.pom(),
+          })
+          .execute('test', ['--karma'], outsideTeamCity);
+      });
+      after(() => test.teardown());
 
-    describe('with jasmine configuration', () => {
-      it('should exit with code 0', () => {
-        expect(res.code).to.equal(0);
-        expect(res.stdout).to.contain(`Finished 'karma'`);
-        expect(res.stdout).to.match(/Executed \d of \d SUCCESS/);
+      describe('with jasmine configuration', () => {
+        it('should exit with code 0', () => {
+          expect(res.code).to.equal(0);
+          expect(res.stdout).to.contain(`Finished 'karma'`);
+          expect(res.stdout).to.match(/Executed \d of \d SUCCESS/);
+        });
+
+        it('should attach phantomjs-polyfill', () => {
+          expect(res.stdout).to.contain('passed polyfill');
+        });
+
+        it('should load local karma config', () => {
+          expect(res.stdout).to.not.contain('passed excluded');
+        });
+
+        it('should load local config files first and then base config files', function() {
+          expect(res.stdout).to.contain('passed correct sequence');
+        });
+
+        describe('Specs Bundle', () => {
+          it('should generate a bundle', () => {
+            expect(test.content('dist/specs.bundle.js')).to.contain(
+              'expect(1).toBe(1)',
+            );
+            expect(test.content('dist/specs.bundle.js')).to.contain(
+              'expect(2).toBe(2)',
+            );
+          });
+
+          it('should not include css into a specs bundle', () => {
+            expect(test.content('dist/specs.bundle.js')).not.to.contain(
+              '.a .b',
+            );
+          });
+
+          it('should contain css modules inside specs bundle', () => {
+            expect(res.stdout).to.not.contain('pass style from node_modules');
+          });
+
+          it('should bundle the "test/karma-setup.js" file as the first entry point if exists', () => {
+            expect(test.content('dist/specs.bundle.js')).to.contain(
+              'setup karma',
+            );
+          });
+        });
       });
 
-      it('should attach phantomjs-polyfill', () => {
-        expect(res.stdout).to.contain('passed polyfill');
-      });
+      describe('with custom build', () => {
+        let customTest;
+        beforeEach(() => (customTest = tp.create()));
+        afterEach(() => customTest.teardown());
 
-      it('should load local karma config', () => {
-        expect(res.stdout).to.not.contain('passed excluded');
-      });
+        it('should consider custom specs.browser globs if configured', () => {
+          const res = test
+            .setup({
+              'some/other/app.glob.js':
+                'it("pass", function () { expect(1).toBe(1); });',
+              'some/other/app2.glob.js':
+                'it("pass", function () { expect(2).toBe(2); });',
+              'karma.conf.js': fx.karmaWithJasmine(),
+              'pom.xml': fx.pom(),
+              'package.json': fx.packageJson({
+                specs: {
+                  browser: 'some/other/*.glob.js',
+                },
+              }),
+            })
+            .execute('test', ['--karma']);
 
-      it('should load local config files first and then base config files', function() {
-        expect(res.stdout).to.contain('passed correct sequence');
-      });
-
-      describe('Specs Bundle', () => {
-        it('should generate a bundle', () => {
+          expect(res.code).to.equal(0);
           expect(test.content('dist/specs.bundle.js')).to.contain(
             'expect(1).toBe(1)',
           );
@@ -693,179 +789,146 @@ describe('Aggregator: Test', () => {
           );
         });
 
-        it('should not include css into a specs bundle', () => {
-          expect(test.content('dist/specs.bundle.js')).not.to.contain('.a .b');
+        it('should allow import sass from node_modules', () => {
+          const res = customTest
+            .setup({
+              'src/client.spec.js': `require('./foo.css'); it('pass', function () {expect(1).toBe(1);});`,
+              'src/foo.css': '@import "bar/bar";',
+              'node_modules/bar/bar.scss': '.bar{color:red}',
+              'karma.conf.js': fx.karmaWithJasmine(),
+              'package.json': fx.packageJson(),
+            })
+            .execute('test', ['--karma']);
+
+          expect(res.code).to.equal(0);
         });
 
-        it('should contain css modules inside specs bundle', () => {
-          expect(res.stdout).to.not.contain('pass style from node_modules');
+        it('should support TPA style params', () => {
+          const res = customTest
+            .setup({
+              'src/client.spec.js': `require('./foo.css'); it('pass', function () {expect(1).toBe(1);});`,
+              'src/foo.css':
+                '.foo{color: unquote("{{color-1}}");font: unquote("; {{body-m}}");font-size: 16px;}',
+              'karma.conf.js': fx.karmaWithJasmine(),
+              'package.json': fx.packageJson({
+                tpaStyle: true,
+              }),
+            })
+            .execute('test', ['--karma']);
+          expect(res.code).to.equal(0);
         });
 
-        it('should bundle the "test/karma-setup.js" file as the first entry point if exists', () => {
-          expect(test.content('dist/specs.bundle.js')).to.contain(
-            'setup karma',
+        it('should exit with code 1 in case webpack fails', () => {
+          const res = customTest
+            .setup({
+              'src/client.spec.js': `require('./ballsack');`,
+              'karma.conf.js': fx.karmaWithJasmine(),
+              'package.json': fx.packageJson(),
+            })
+            .execute('test', ['--karma']);
+
+          expect(res.code).to.equal(1);
+          expect(res.stderr).to.contain(
+            `Module not found: Error: Can't resolve './ballsack'`,
           );
+          expect(res.stdout).not.to.contain(`Finished 'karma'`);
         });
-      });
-    });
 
-    describe('with custom build', () => {
-      let customTest;
-      beforeEach(() => (customTest = tp.create()));
-      afterEach(() => customTest.teardown());
-
-      it('should consider custom specs.browser globs if configured', () => {
-        const res = test
-          .setup({
-            'some/other/app.glob.js':
-              'it("pass", function () { expect(1).toBe(1); });',
-            'some/other/app2.glob.js':
-              'it("pass", function () { expect(2).toBe(2); });',
-            'karma.conf.js': fx.karmaWithJasmine(),
-            'pom.xml': fx.pom(),
-            'package.json': fx.packageJson({
-              specs: {
-                browser: 'some/other/*.glob.js',
-              },
-            }),
-          })
-          .execute('test', ['--karma']);
-
-        expect(res.code).to.equal(0);
-        expect(test.content('dist/specs.bundle.js')).to.contain(
-          'expect(1).toBe(1)',
-        );
-        expect(test.content('dist/specs.bundle.js')).to.contain(
-          'expect(2).toBe(2)',
-        );
-      });
-
-      it('should allow import sass from node_modules', () => {
-        const res = customTest
-          .setup({
-            'src/client.spec.js': `require('./foo.css'); it('pass', function () {expect(1).toBe(1);});`,
-            'src/foo.css': '@import "bar/bar";',
-            'node_modules/bar/bar.scss': '.bar{color:red}',
-            'karma.conf.js': fx.karmaWithJasmine(),
-            'package.json': fx.packageJson(),
-          })
-          .execute('test', ['--karma']);
-
-        expect(res.code).to.equal(0);
-      });
-
-      it('should support TPA style params', () => {
-        const res = customTest
-          .setup({
-            'src/client.spec.js': `require('./foo.css'); it('pass', function () {expect(1).toBe(1);});`,
-            'src/foo.css':
-              '.foo{color: unquote("{{color-1}}");font: unquote("; {{body-m}}");font-size: 16px;}',
-            'karma.conf.js': fx.karmaWithJasmine(),
-            'package.json': fx.packageJson({
-              tpaStyle: true,
-            }),
-          })
-          .execute('test', ['--karma']);
-        expect(res.code).to.equal(0);
-      });
-
-      it('should exit with code 1 in case webpack fails', () => {
-        const res = customTest
-          .setup({
-            'src/client.spec.js': `require('./ballsack');`,
-            'karma.conf.js': fx.karmaWithJasmine(),
-            'package.json': fx.packageJson(),
-          })
-          .execute('test', ['--karma']);
-
-        expect(res.code).to.equal(1);
-        expect(res.stderr).to.contain(
-          `Module not found: Error: Can't resolve './ballsack'`,
-        );
-        expect(res.stdout).not.to.contain(`Finished 'karma'`);
-      });
-
-      it('should fail with exit code 1', () => {
-        const res = customTest
-          .setup({
-            'src/test.spec.js':
-              'it("fail", function () { expect(1).toBe(2); });',
-            'karma.conf.js': fx.karmaWithJasmine(),
-            'package.json': fx.packageJson(),
-            'pom.xml': fx.pom(),
-          })
-          .execute('test', ['--karma'], outsideTeamCity);
-
-        expect(res.code).to.equal(1);
-        expect(res.stdout).to.contain(`Failed 'karma'`);
-        expect(res.stdout).to.contain('FAILED');
-      });
-
-      describe('with browser (chrome) configurations and stylable', () => {
-        it('should pass with exit code 0, not run phantom and understand "st.css" files', () => {
+        it('should fail with exit code 1', () => {
           const res = customTest
             .setup({
               'src/test.spec.js':
-                'require("./style.st.css"), it("pass", function () {});',
-              'src/style.st.css': `
+                'it("fail", function () { expect(1).toBe(2); });',
+              'karma.conf.js': fx.karmaWithJasmine(),
+              'package.json': fx.packageJson(),
+              'pom.xml': fx.pom(),
+            })
+            .execute('test', ['--karma'], outsideTeamCity);
+
+          expect(res.code).to.equal(1);
+          expect(res.stdout).to.contain(`Failed 'karma'`);
+          expect(res.stdout).to.contain('FAILED');
+        });
+
+        describe('with browser (chrome) configurations and stylable', () => {
+          it('should pass with exit code 0, not run phantom and understand "st.css" files', () => {
+            const res = customTest
+              .setup({
+                'src/test.spec.js':
+                  'require("./style.st.css"), it("pass", function () {});',
+                'src/style.st.css': `
                 .someclass {
                   color: yellow;
               }`,
-              'karma.conf.js':
-                'module.exports = {browsers: ["ChromeHeadless"]}',
-              'package.json': fx.packageJson(),
-            })
-            .execute('test', ['--karma'], outsideTeamCity);
+                'karma.conf.js':
+                  'module.exports = {browsers: ["ChromeHeadless"]}',
+                'package.json': fx.packageJson(),
+              })
+              .execute('test', ['--karma'], outsideTeamCity);
 
-          expect(res.code).to.equal(0);
-          expect(res.stdout).to.contain(`browser Chrome`);
-          expect(res.stdout).to.not.contain(`browser PhantomJS`);
-          expect(res.stdout).to.contain('Executed 1 of 1 SUCCESS');
-          expect(customTest.content('dist/specs.bundle.js')).to.contain(
-            'someclass',
-          );
+            expect(res.code).to.equal(0);
+            expect(res.stdout).to.contain(`browser Chrome`);
+            expect(res.stdout).to.not.contain(`browser PhantomJS`);
+            expect(res.stdout).to.contain('Executed 1 of 1 SUCCESS');
+            expect(customTest.content('dist/specs.bundle.js')).to.contain(
+              'someclass',
+            );
+          });
+        });
+
+        describe('with default (mocha) configuration', () => {
+          it('should pass with exit code 0', () => {
+            const res = customTest
+              .setup(passingMochaTest())
+              .execute('test', ['--karma'], outsideTeamCity);
+
+            expect(res.code).to.equal(0);
+            expect(res.stdout)
+              .to.contain(`Finished 'karma'`)
+              .and.contain('Executed 1 of 1 SUCCESS');
+          });
+
+          it('should use appropriate reporter for TeamCity', () => {
+            const res = customTest
+              .setup(passingMochaTest())
+              .execute('test', ['--karma'], insideTeamCity);
+
+            expect(res.code).to.equal(0);
+            expect(res.stdout)
+              .to.contain(`Finished 'karma'`)
+              .and.contain("##teamcity[testStarted name='should just pass'");
+          });
+        });
+
+        describe('with mocha configuration', () => {
+          it('should pass with exit code 0', () => {
+            const res = customTest
+              .setup({
+                'src/test.spec.js': 'it.only("pass", function () {});',
+                'karma.conf.js': 'module.exports = {frameworks: ["mocha"]}',
+                'package.json': fx.packageJson(),
+              })
+              .execute('test', ['--karma'], outsideTeamCity);
+
+            expect(res.code).to.equal(0);
+            expect(res.stdout).to.contain(`Finished 'karma'`);
+            expect(res.stdout).to.contain('Executed 1 of 1 SUCCESS');
+          });
         });
       });
+    });
+  });
 
-      describe('with default (mocha) configuration', () => {
-        it('should pass with exit code 0', () => {
-          const res = customTest
-            .setup(passingMochaTest())
-            .execute('test', ['--karma'], outsideTeamCity);
+  describe('--jasmine', () => {
+    it('it should pass dynamic arguments to the test runner', () => {
+      const res = tp
+        .create()
+        .setup({
+          'package.json': fx.packageJson(),
+        })
+        .execute('test', ['--jasmine', '--', '-v'], outsideTeamCity);
 
-          expect(res.code).to.equal(0);
-          expect(res.stdout)
-            .to.contain(`Finished 'karma'`)
-            .and.contain('Executed 1 of 1 SUCCESS');
-        });
-
-        it('should use appropriate reporter for TeamCity', () => {
-          const res = customTest
-            .setup(passingMochaTest())
-            .execute('test', ['--karma'], insideTeamCity);
-
-          expect(res.code).to.equal(0);
-          expect(res.stdout)
-            .to.contain(`Finished 'karma'`)
-            .and.contain("##teamcity[testStarted name='should just pass'");
-        });
-      });
-
-      describe('with mocha configuration', () => {
-        it('should pass with exit code 0', () => {
-          const res = customTest
-            .setup({
-              'src/test.spec.js': 'it.only("pass", function () {});',
-              'karma.conf.js': 'module.exports = {frameworks: ["mocha"]}',
-              'package.json': fx.packageJson(),
-            })
-            .execute('test', ['--karma'], outsideTeamCity);
-
-          expect(res.code).to.equal(0);
-          expect(res.stdout).to.contain(`Finished 'karma'`);
-          expect(res.stdout).to.contain('Executed 1 of 1 SUCCESS');
-        });
-      });
+      expect(res.stdout).to.match(/jasmine v\d+\.\d+\.\d+/);
     });
   });
 });
