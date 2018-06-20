@@ -164,7 +164,6 @@ module.exports = runner.command(
         configFile: path.join(__dirname, '../../config/karma.conf'),
         singleRun: !shouldWatch,
         autoWatch: shouldWatch,
-        ...minimist(testRunnerArgs),
       });
     }
 
