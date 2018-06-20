@@ -648,8 +648,8 @@ describe('Aggregator: Test', () => {
 
   describe('--karma', function() {
     it('it should pass dynamic arguments to the test runner', () => {
-      const res = test
-        .verbose()
+      const res = tp
+        .create()
         .setup({
           'package.json': fx.packageJson(),
         })
